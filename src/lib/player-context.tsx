@@ -73,6 +73,11 @@ function createSilentWavUrl(seconds = 30, sampleRate = 8000) {
   write(36, "data");
   view.setUint32(40, dataSize, true);
 
+  for (let i = 0; i < samples; i += 1) {
+    const sample = Math.round(Math.sin((2 * Math.PI * 220 * i) / sampleRate) * 48);
+    view.setInt16(44 + i * 2, sample, true);
+  }
+
   return URL.createObjectURL(new Blob([buffer], { type: "audio/wav" }));
 }
 
@@ -156,6 +161,34 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }, 120);
   }, [ensureAnchor]);
 
+  const applyMediaSession = useCallback((track: Track) => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: track.title,
+      artist: track.artist,
+      artwork: [{ src: track.thumbnail, sizes: "512x512", type: "image/jpeg" }],
+    });
+    navigator.mediaSession.setActionHandler("play", () => {
+      kickAnchor();
+      playerRef.current?.playVideo();
+    });
+    navigator.mediaSession.setActionHandler("pause", () => {
+      anchorRef.current?.pause();
+      playerRef.current?.pauseVideo();
+    });
+    navigator.mediaSession.setActionHandler("nexttrack", () => advance());
+    navigator.mediaSession.setActionHandler("previoustrack", () => setIndex((i) => Math.max(0, i - 1)));
+    try {
+      navigator.mediaSession.setActionHandler("seekbackward", null);
+      navigator.mediaSession.setActionHandler("seekforward", null);
+    } catch {}
+    try {
+      navigator.mediaSession.setActionHandler("seekto", (details: any) => {
+        if (details.seekTime != null) playerRef.current?.seekTo(details.seekTime, true);
+      });
+    } catch {}
+  }, [advance, kickAnchor]);
+
   // init YT
   useEffect(() => {
     let mounted = true;
@@ -236,26 +269,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!current || typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: current.title,
-      artist: current.artist,
-      artwork: [{ src: current.thumbnail, sizes: "512x512", type: "image/jpeg" }],
-    });
-    navigator.mediaSession.setActionHandler("play", () => playerRef.current?.playVideo());
-    navigator.mediaSession.setActionHandler("pause", () => playerRef.current?.pauseVideo());
-    navigator.mediaSession.setActionHandler("nexttrack", () => advance());
-    navigator.mediaSession.setActionHandler("previoustrack", () => setIndex((i) => Math.max(0, i - 1)));
-    // Explicitly remove the 10s skip controls so iOS shows prev/next track buttons instead
-    try {
-      navigator.mediaSession.setActionHandler("seekbackward", null);
-      navigator.mediaSession.setActionHandler("seekforward", null);
-    } catch {}
-    try {
-      navigator.mediaSession.setActionHandler("seekto", (details: any) => {
-        if (details.seekTime != null) playerRef.current?.seekTo(details.seekTime, true);
-      });
-    } catch {}
-  }, [current, advance]);
+    applyMediaSession(current);
+  }, [applyMediaSession, current]);
 
   // Lock body scroll when full player is open
   useEffect(() => {
@@ -270,11 +285,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const playTrack = useCallback((track: Track, q?: Track[]) => {
     const anchor = ensureAnchor();
     if (anchor) void anchor.play().catch(() => {});
+    applyMediaSession(track);
     const newQueue = q && q.length ? q : [track];
     const idx = newQueue.findIndex((t) => t.id === track.id);
     setQueue(newQueue);
     setIndex(idx >= 0 ? idx : 0);
-  }, [ensureAnchor]);
+  }, [applyMediaSession, ensureAnchor]);
 
   const toggle = useCallback(() => {
     const p = playerRef.current;
