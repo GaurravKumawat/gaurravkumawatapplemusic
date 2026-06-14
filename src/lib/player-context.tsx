@@ -149,6 +149,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     navigator.mediaSession.setActionHandler("pause", () => playerRef.current?.pauseVideo());
     navigator.mediaSession.setActionHandler("nexttrack", () => advance());
     navigator.mediaSession.setActionHandler("previoustrack", () => setIndex((i) => Math.max(0, i - 1)));
+    // Explicitly remove the 10s skip controls so iOS shows prev/next track buttons instead
+    try {
+      navigator.mediaSession.setActionHandler("seekbackward", null);
+      navigator.mediaSession.setActionHandler("seekforward", null);
+    } catch {}
+    try {
+      navigator.mediaSession.setActionHandler("seekto", (details: any) => {
+        if (details.seekTime != null) playerRef.current?.seekTo(details.seekTime, true);
+      });
+    } catch {}
   }, [current, advance]);
 
   // Lock body scroll when full player is open
