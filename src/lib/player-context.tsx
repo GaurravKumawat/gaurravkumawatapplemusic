@@ -36,6 +36,35 @@ declare global {
   }
 }
 
+// Builds a tiny silent looping WAV data URI. Playing this in OUR document makes
+// iOS attribute the lock-screen "Now Playing" to this page (instead of the
+// cross-origin YouTube iframe), so our MediaSession prev/next handlers are used.
+function makeSilentWavDataUri(): string {
+  const sr = 8000;
+  const samples = sr; // 1 second
+  const bytes = 44 + samples * 2;
+  const buf = new ArrayBuffer(bytes);
+  const view = new DataView(buf);
+  const writeStr = (off: number, s: string) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+  writeStr(0, "RIFF");
+  view.setUint32(4, 36 + samples * 2, true);
+  writeStr(8, "WAVE");
+  writeStr(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sr, true);
+  view.setUint32(28, sr * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeStr(36, "data");
+  view.setUint32(40, samples * 2, true);
+  let binary = "";
+  const u8 = new Uint8Array(buf);
+  for (let i = 0; i < u8.length; i++) binary += String.fromCharCode(u8[i]);
+  return "data:audio/wav;base64," + btoa(binary);
+}
+
 let ytReadyPromise: Promise<void> | null = null;
 function loadYT(): Promise<void> {
   if (typeof window === "undefined") return Promise.resolve();
