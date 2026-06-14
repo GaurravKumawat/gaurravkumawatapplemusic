@@ -90,6 +90,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<RepeatMode>("off");
   const playerRef = useRef<any>(null);
+  const silentRef = useRef<HTMLAudioElement | null>(null);
   const containerId = "yt-player-host";
 
   const current = queue[index] ?? null;
