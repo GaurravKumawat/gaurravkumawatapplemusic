@@ -50,6 +50,32 @@ function loadYT(): Promise<void> {
   return ytReadyPromise;
 }
 
+function createSilentWavUrl(seconds = 30, sampleRate = 8000) {
+  const samples = seconds * sampleRate;
+  const dataSize = samples * 2;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+  const write = (offset: number, value: string) => {
+    for (let i = 0; i < value.length; i += 1) view.setUint8(offset + i, value.charCodeAt(i));
+  };
+
+  write(0, "RIFF");
+  view.setUint32(4, 36 + dataSize, true);
+  write(8, "WAVE");
+  write(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  write(36, "data");
+  view.setUint32(40, dataSize, true);
+
+  return URL.createObjectURL(new Blob([buffer], { type: "audio/wav" }));
+}
+
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const [queue, setQueue] = useState<Track[]>([]);
   const [index, setIndex] = useState(0);
@@ -61,6 +87,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<RepeatMode>("off");
   const playerRef = useRef<any>(null);
+  const anchorRef = useRef<HTMLAudioElement | null>(null);
+  const anchorUrlRef = useRef<string | null>(null);
   const containerId = "yt-player-host";
 
   const current = queue[index] ?? null;
@@ -91,6 +119,27 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
     if (i + 1 < q.length) setIndex(i + 1);
     else if (repeatRef.current === "all") setIndex(0);
+  }, []);
+
+  const ensureAnchor = useCallback(() => {
+    if (typeof window === "undefined") return null;
+    if (anchorRef.current) return anchorRef.current;
+
+    const audio = new Audio();
+    const url = createSilentWavUrl();
+    anchorUrlRef.current = url;
+    audio.src = url;
+    audio.loop = true;
+    audio.preload = "auto";
+    audio.playsInline = true;
+    audio.volume = 0.0001;
+    audio.setAttribute("playsinline", "true");
+    audio.setAttribute("webkit-playsinline", "true");
+    audio.setAttribute("x-webkit-airplay", "deny");
+    audio.style.display = "none";
+    document.body.appendChild(audio);
+    anchorRef.current = audio;
+    return audio;
   }, []);
 
   // init YT
@@ -145,7 +194,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
     navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+    const anchor = anchorRef.current;
+    if (!anchor) return;
+    if (isPlaying) void anchor.play().catch(() => {});
+    else anchor.pause();
   }, [isPlaying]);
+
+  useEffect(() => {
+    return () => {
+      anchorRef.current?.pause();
+      anchorRef.current?.remove();
+      if (anchorUrlRef.current) URL.revokeObjectURL(anchorUrlRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!ready || !current || !playerRef.current) return;
@@ -189,18 +250,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [showFull]);
 
   const playTrack = useCallback((track: Track, q?: Track[]) => {
+    const anchor = ensureAnchor();
+    if (anchor) void anchor.play().catch(() => {});
     const newQueue = q && q.length ? q : [track];
     const idx = newQueue.findIndex((t) => t.id === track.id);
     setQueue(newQueue);
     setIndex(idx >= 0 ? idx : 0);
-  }, []);
+  }, [ensureAnchor]);
 
   const toggle = useCallback(() => {
     const p = playerRef.current;
     if (!p) return;
-    if (isPlaying) p.pauseVideo();
-    else p.playVideo();
-  }, [isPlaying]);
+    if (isPlaying) {
+      anchorRef.current?.pause();
+      p.pauseVideo();
+    } else {
+      const anchor = ensureAnchor();
+      if (anchor) void anchor.play().catch(() => {});
+      p.playVideo();
+    }
+  }, [ensureAnchor, isPlaying]);
 
   const next = useCallback(() => advance(), [advance]);
   const prev = useCallback(() => {
