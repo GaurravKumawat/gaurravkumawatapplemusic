@@ -259,6 +259,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       value={{ queue, index, current, isPlaying, position, duration, showFull, ready, shuffle, repeat, playTrack, toggle, next, prev, seek, setShowFull, toggleShuffle, cycleRepeat }}
     >
       {children}
+      <audio
+        ref={silentRef}
+        src={makeSilentWavDataUri()}
+        loop
+        playsInline
+        style={{ display: "none" }}
+      />
       <div style={{ position: "fixed", left: -9999, top: -9999, width: 0, height: 0, overflow: "hidden" }}>
         <div id={containerId} />
       </div>
