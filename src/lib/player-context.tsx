@@ -89,6 +89,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const playerRef = useRef<any>(null);
   const anchorRef = useRef<HTMLAudioElement | null>(null);
   const anchorUrlRef = useRef<string | null>(null);
+  const anchorKickTimerRef = useRef<number | null>(null);
   const containerId = "yt-player-host";
 
   const current = queue[index] ?? null;
@@ -141,6 +142,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return audio;
   }, []);
 
+  const kickAnchor = useCallback(() => {
+    if (typeof window === "undefined") return;
+    if (anchorKickTimerRef.current != null) window.clearTimeout(anchorKickTimerRef.current);
+    const anchor = ensureAnchor();
+    if (!anchor) return;
+    void anchor.play().catch(() => {});
+    anchorKickTimerRef.current = window.setTimeout(() => {
+      void anchor.play().catch(() => {});
+      if (typeof navigator !== "undefined" && "mediaSession" in navigator) {
+        navigator.mediaSession.playbackState = "playing";
+      }
+    }, 120);
+  }, [ensureAnchor]);
+
   // init YT
   useEffect(() => {
     let mounted = true;
@@ -154,7 +169,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           onReady: () => setReady(true),
           onStateChange: (e: any) => {
             const YTState = window.YT.PlayerState;
-            if (e.data === YTState.PLAYING) setIsPlaying(true);
+            if (e.data === YTState.PLAYING) {
+              setIsPlaying(true);
+              kickAnchor();
+            }
             else if (e.data === YTState.PAUSED) setIsPlaying(false);
             else if (e.data === YTState.ENDED) advance();
           },
@@ -203,6 +221,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return () => {
       anchorRef.current?.pause();
       anchorRef.current?.remove();
+      if (anchorKickTimerRef.current != null) window.clearTimeout(anchorKickTimerRef.current);
       if (anchorUrlRef.current) URL.revokeObjectURL(anchorUrlRef.current);
     };
   }, []);
