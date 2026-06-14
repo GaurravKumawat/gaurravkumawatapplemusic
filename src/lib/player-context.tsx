@@ -131,7 +131,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     audio.src = url;
     audio.loop = true;
     audio.preload = "auto";
-    audio.playsInline = true;
     audio.volume = 0.0001;
     audio.setAttribute("playsinline", "true");
     audio.setAttribute("webkit-playsinline", "true");
