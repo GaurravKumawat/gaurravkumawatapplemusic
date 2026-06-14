@@ -50,6 +50,37 @@ function loadYT(): Promise<void> {
   return ytReadyPromise;
 }
 
+function createSilentWavUrl(seconds = 30, sampleRate = 8000) {
+  const samples = seconds * sampleRate;
+  const dataSize = samples * 2;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+  const write = (offset: number, value: string) => {
+    for (let i = 0; i < value.length; i += 1) view.setUint8(offset + i, value.charCodeAt(i));
+  };
+
+  write(0, "RIFF");
+  view.setUint32(4, 36 + dataSize, true);
+  write(8, "WAVE");
+  write(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  write(36, "data");
+  view.setUint32(40, dataSize, true);
+
+  for (let i = 0; i < samples; i += 1) {
+    const sample = Math.round(Math.sin((2 * Math.PI * 220 * i) / sampleRate) * 48);
+    view.setInt16(44 + i * 2, sample, true);
+  }
+
+  return URL.createObjectURL(new Blob([buffer], { type: "audio/wav" }));
+}
+
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const [queue, setQueue] = useState<Track[]>([]);
   const [index, setIndex] = useState(0);
@@ -61,6 +92,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<RepeatMode>("off");
   const playerRef = useRef<any>(null);
+  const anchorRef = useRef<HTMLAudioElement | null>(null);
+  const anchorUrlRef = useRef<string | null>(null);
+  const anchorKickTimerRef = useRef<number | null>(null);
   const containerId = "yt-player-host";
 
   const current = queue[index] ?? null;
@@ -93,6 +127,68 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     else if (repeatRef.current === "all") setIndex(0);
   }, []);
 
+  const ensureAnchor = useCallback(() => {
+    if (typeof window === "undefined") return null;
+    if (anchorRef.current) return anchorRef.current;
+
+    const audio = new Audio();
+    const url = createSilentWavUrl();
+    anchorUrlRef.current = url;
+    audio.src = url;
+    audio.loop = true;
+    audio.preload = "auto";
+    audio.volume = 0.0001;
+    audio.setAttribute("playsinline", "true");
+    audio.setAttribute("webkit-playsinline", "true");
+    audio.setAttribute("x-webkit-airplay", "deny");
+    audio.style.display = "none";
+    document.body.appendChild(audio);
+    anchorRef.current = audio;
+    return audio;
+  }, []);
+
+  const kickAnchor = useCallback(() => {
+    if (typeof window === "undefined") return;
+    if (anchorKickTimerRef.current != null) window.clearTimeout(anchorKickTimerRef.current);
+    const anchor = ensureAnchor();
+    if (!anchor) return;
+    void anchor.play().catch(() => {});
+    anchorKickTimerRef.current = window.setTimeout(() => {
+      void anchor.play().catch(() => {});
+      if (typeof navigator !== "undefined" && "mediaSession" in navigator) {
+        navigator.mediaSession.playbackState = "playing";
+      }
+    }, 120);
+  }, [ensureAnchor]);
+
+  const applyMediaSession = useCallback((track: Track) => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: track.title,
+      artist: track.artist,
+      artwork: [{ src: track.thumbnail, sizes: "512x512", type: "image/jpeg" }],
+    });
+    navigator.mediaSession.setActionHandler("play", () => {
+      kickAnchor();
+      playerRef.current?.playVideo();
+    });
+    navigator.mediaSession.setActionHandler("pause", () => {
+      anchorRef.current?.pause();
+      playerRef.current?.pauseVideo();
+    });
+    navigator.mediaSession.setActionHandler("nexttrack", () => advance());
+    navigator.mediaSession.setActionHandler("previoustrack", () => setIndex((i) => Math.max(0, i - 1)));
+    try {
+      navigator.mediaSession.setActionHandler("seekbackward", null);
+      navigator.mediaSession.setActionHandler("seekforward", null);
+    } catch {}
+    try {
+      navigator.mediaSession.setActionHandler("seekto", (details: any) => {
+        if (details.seekTime != null) playerRef.current?.seekTo(details.seekTime, true);
+      });
+    } catch {}
+  }, [advance, kickAnchor]);
+
   // init YT
   useEffect(() => {
     let mounted = true;
@@ -106,7 +202,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           onReady: () => setReady(true),
           onStateChange: (e: any) => {
             const YTState = window.YT.PlayerState;
-            if (e.data === YTState.PLAYING) setIsPlaying(true);
+            if (e.data === YTState.PLAYING) {
+              setIsPlaying(true);
+              kickAnchor();
+            }
             else if (e.data === YTState.PAUSED) setIsPlaying(false);
             else if (e.data === YTState.ENDED) advance();
           },
@@ -145,7 +244,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
     navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+    const anchor = anchorRef.current;
+    if (!anchor) return;
+    if (isPlaying) void anchor.play().catch(() => {});
+    else anchor.pause();
   }, [isPlaying]);
+
+  useEffect(() => {
+    return () => {
+      anchorRef.current?.pause();
+      anchorRef.current?.remove();
+      if (anchorKickTimerRef.current != null) window.clearTimeout(anchorKickTimerRef.current);
+      if (anchorUrlRef.current) URL.revokeObjectURL(anchorUrlRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!ready || !current || !playerRef.current) return;
@@ -157,26 +269,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!current || typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: current.title,
-      artist: current.artist,
-      artwork: [{ src: current.thumbnail, sizes: "512x512", type: "image/jpeg" }],
-    });
-    navigator.mediaSession.setActionHandler("play", () => playerRef.current?.playVideo());
-    navigator.mediaSession.setActionHandler("pause", () => playerRef.current?.pauseVideo());
-    navigator.mediaSession.setActionHandler("nexttrack", () => advance());
-    navigator.mediaSession.setActionHandler("previoustrack", () => setIndex((i) => Math.max(0, i - 1)));
-    // Explicitly remove the 10s skip controls so iOS shows prev/next track buttons instead
-    try {
-      navigator.mediaSession.setActionHandler("seekbackward", null);
-      navigator.mediaSession.setActionHandler("seekforward", null);
-    } catch {}
-    try {
-      navigator.mediaSession.setActionHandler("seekto", (details: any) => {
-        if (details.seekTime != null) playerRef.current?.seekTo(details.seekTime, true);
-      });
-    } catch {}
-  }, [current, advance]);
+    applyMediaSession(current);
+  }, [applyMediaSession, current]);
 
   // Lock body scroll when full player is open
   useEffect(() => {
@@ -189,18 +283,27 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [showFull]);
 
   const playTrack = useCallback((track: Track, q?: Track[]) => {
+    const anchor = ensureAnchor();
+    if (anchor) void anchor.play().catch(() => {});
+    applyMediaSession(track);
     const newQueue = q && q.length ? q : [track];
     const idx = newQueue.findIndex((t) => t.id === track.id);
     setQueue(newQueue);
     setIndex(idx >= 0 ? idx : 0);
-  }, []);
+  }, [applyMediaSession, ensureAnchor]);
 
   const toggle = useCallback(() => {
     const p = playerRef.current;
     if (!p) return;
-    if (isPlaying) p.pauseVideo();
-    else p.playVideo();
-  }, [isPlaying]);
+    if (isPlaying) {
+      anchorRef.current?.pause();
+      p.pauseVideo();
+    } else {
+      const anchor = ensureAnchor();
+      if (anchor) void anchor.play().catch(() => {});
+      p.playVideo();
+    }
+  }, [ensureAnchor, isPlaying]);
 
   const next = useCallback(() => advance(), [advance]);
   const prev = useCallback(() => {
