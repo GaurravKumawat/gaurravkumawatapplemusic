@@ -226,6 +226,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [showFull]);
 
   const playTrack = useCallback((track: Track, q?: Track[]) => {
+    // Start silent audio within the user gesture so iOS lets our page own the session
+    try { silentRef.current?.play().catch(() => {}); } catch {}
     const newQueue = q && q.length ? q : [track];
     const idx = newQueue.findIndex((t) => t.id === track.id);
     setQueue(newQueue);
@@ -236,7 +238,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const p = playerRef.current;
     if (!p) return;
     if (isPlaying) p.pauseVideo();
-    else p.playVideo();
+    else { try { silentRef.current?.play().catch(() => {}); } catch {} p.playVideo(); }
   }, [isPlaying]);
 
   const next = useCallback(() => advance(), [advance]);
