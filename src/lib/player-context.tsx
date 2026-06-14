@@ -122,13 +122,30 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const p = playerRef.current;
       if (p && p.getCurrentTime) {
         try {
-          setPosition(p.getCurrentTime() || 0);
-          setDuration(p.getDuration() || 0);
+          const pos = p.getCurrentTime() || 0;
+          const dur = p.getDuration() || 0;
+          setPosition(pos);
+          setDuration(dur);
+          if (typeof navigator !== "undefined" && "mediaSession" in navigator && dur > 0) {
+            try {
+              navigator.mediaSession.setPositionState({
+                duration: dur,
+                position: Math.min(pos, dur),
+                playbackRate: 1,
+              });
+            } catch {}
+          }
         } catch {}
       }
     }, 500);
     return () => clearInterval(id);
   }, []);
+
+  // Keep the OS playback state in sync so the lock screen shows correct controls
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+    navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+  }, [isPlaying]);
 
   useEffect(() => {
     if (!ready || !current || !playerRef.current) return;
