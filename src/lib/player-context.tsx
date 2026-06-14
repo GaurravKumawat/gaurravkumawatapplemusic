@@ -175,6 +175,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
     navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+    // Drive the silent audio element so OUR page owns the media session
+    const a = silentRef.current;
+    if (a) {
+      if (isPlaying) { a.play().catch(() => {}); }
+      else { a.pause(); }
+    }
   }, [isPlaying]);
 
   useEffect(() => {
