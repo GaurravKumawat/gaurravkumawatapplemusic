@@ -40,6 +40,7 @@ declare global {
 // iOS attribute the lock-screen "Now Playing" to this page (instead of the
 // cross-origin YouTube iframe), so our MediaSession prev/next handlers are used.
 function makeSilentWavDataUri(): string {
+  if (typeof btoa === "undefined") return "";
   const sr = 8000;
   const samples = sr; // 1 second
   const bytes = 44 + samples * 2;
