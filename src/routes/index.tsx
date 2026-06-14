@@ -1,29 +1,221 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { Search as SearchIcon, X } from "lucide-react";
+import { PlayerProvider, usePlayer } from "@/lib/player-context";
+import { LibraryProvider } from "@/lib/library-store";
+import { getTrending, searchMusic, type Track } from "@/lib/music.functions";
+import { MiniPlayer } from "@/components/MiniPlayer";
+import { NowPlaying } from "@/components/NowPlaying";
+import { TabBar, type Tab } from "@/components/TabBar";
+import { TrackRow } from "@/components/TrackRow";
+import { LibraryView } from "@/components/LibraryView";
+import { ActionSheet } from "@/components/ActionSheet";
+import { LyricsView } from "@/components/LyricsView";
+import { RecognizeView } from "@/components/RecognizeView";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Your App" },
-      { name: "description", content: "Replace this with a one-sentence description of your app." },
-      { property: "og:title", content: "Your App" },
-      { property: "og:description", content: "Replace this with a one-sentence description of your app." },
+      { title: "Music — Web Player" },
+      { name: "description", content: "Apple Music–inspired web music player powered by YouTube." },
+      { name: "theme-color", content: "#000000" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" },
     ],
   }),
-  component: Index,
+  component: () => (
+    <LibraryProvider>
+      <PlayerProvider>
+        <App />
+      </PlayerProvider>
+    </LibraryProvider>
+  ),
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
+function App() {
+  const [tab, setTab] = useState<Tab>("listen");
+  const { current } = usePlayer();
+  const [moreFor, setMoreFor] = useState<Track | null>(null);
+  const [lyricsFor, setLyricsFor] = useState<Track | null>(null);
+
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="pt-safe">
+        {tab === "listen" && <ListenNow onMore={setMoreFor} />}
+        {tab === "search" && <SearchView onMore={setMoreFor} />}
+        {tab === "library" && <LibraryView onMore={setMoreFor} />}
+        {tab === "recognize" && <RecognizeView />}
+      </div>
+      <div style={{ height: current ? 140 : 80 }} />
+      <MiniPlayer />
+      <TabBar tab={tab} onChange={setTab} />
+      <NowPlaying
+        onMore={() => current && setMoreFor(current)}
+        onShowLyrics={() => current && setLyricsFor(current)}
       />
+      <ActionSheet
+        track={moreFor}
+        onClose={() => setMoreFor(null)}
+        onShowLyrics={(t) => setLyricsFor(t)}
+      />
+      {lyricsFor && <LyricsView track={lyricsFor} onClose={() => setLyricsFor(null)} />}
+    </div>
+  );
+}
+
+function SectionHeader({ title }: { title: string }) {
+  return <h1 className="text-[28px] font-bold tracking-tight px-4 pt-3 pb-2">{title}</h1>;
+}
+
+function ListenNow({ onMore }: { onMore: (t: Track) => void }) {
+  const trending = useServerFn(getTrending);
+  const { data, isLoading } = useQuery({
+    queryKey: ["trending"],
+    queryFn: () => trending(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const { playTrack } = usePlayer();
+  const tracks = data?.tracks ?? [];
+
+  return (
+    <div>
+      <SectionHeader title="Listen Now" />
+
+      {tracks[0] && (
+        <button
+          onClick={() => playTrack(tracks[0], tracks)}
+          className="block w-full px-4 mb-6 text-left"
+        >
+          <div className="text-[11px] uppercase tracking-wider text-primary font-semibold mb-1">
+            Today's Pick
+          </div>
+          <div className="relative rounded-2xl overflow-hidden aspect-[4/3] shadow-xl">
+            <img src={tracks[0].thumbnail} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 p-4">
+              <div className="text-white text-[20px] font-bold leading-tight line-clamp-2">{tracks[0].title}</div>
+              <div className="text-white/80 text-[14px] truncate">{tracks[0].artist}</div>
+            </div>
+          </div>
+        </button>
+      )}
+
+      <h2 className="text-[20px] font-bold px-4 mb-2">Trending Now</h2>
+      <div className="flex gap-3 overflow-x-auto no-scrollbar px-4 pb-4">
+        {isLoading
+          ? Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="shrink-0 w-40">
+                <div className="w-40 h-40 rounded-xl bg-muted animate-pulse" />
+                <div className="h-3 mt-2 w-32 rounded bg-muted animate-pulse" />
+                <div className="h-3 mt-1 w-20 rounded bg-muted animate-pulse" />
+              </div>
+            ))
+          : tracks.slice(1, 12).map((t) => (
+              <button
+                key={t.id}
+                onClick={() => playTrack(t, tracks)}
+                className="shrink-0 w-40 text-left active:opacity-70"
+              >
+                <img src={t.thumbnail} alt="" className="w-40 h-40 rounded-xl object-cover bg-muted" />
+                <div className="text-[14px] font-medium mt-2 line-clamp-1">{t.title}</div>
+                <div className="text-[12px] text-muted-foreground line-clamp-1">{t.artist}</div>
+              </button>
+            ))}
+      </div>
+
+      <h2 className="text-[20px] font-bold px-4 mb-2 mt-2">Made For You</h2>
+      <div className="px-4">
+        {tracks.slice(0, 10).map((t, i) => (
+          <TrackRow key={t.id + i} track={t} index={i + 1} onPlay={() => playTrack(t, tracks)} onMore={onMore} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SearchView({ onMore }: { onMore: (t: Track) => void }) {
+  const [q, setQ] = useState("");
+  const [submitted, setSubmitted] = useState("");
+  const search = useServerFn(searchMusic);
+  const { data, isFetching } = useQuery({
+    queryKey: ["search", submitted],
+    queryFn: () => search({ data: { query: submitted } }),
+    enabled: submitted.length > 0,
+  });
+  const { playTrack } = usePlayer();
+
+  useEffect(() => {
+    const id = setTimeout(() => setSubmitted(q.trim()), 350);
+    return () => clearTimeout(id);
+  }, [q]);
+
+  const tracks: Track[] = data?.tracks ?? [];
+
+  return (
+    <div>
+      <SectionHeader title="Search" />
+      <div className="px-4 pb-3">
+        <div className="flex items-center gap-2 bg-secondary rounded-xl px-3 py-2">
+          <SearchIcon className="h-4 w-4 text-muted-foreground" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Artists, Songs, Lyrics, and More"
+            className="flex-1 bg-transparent outline-none text-[15px] placeholder:text-muted-foreground"
+          />
+          {q && (
+            <button onClick={() => setQ("")} aria-label="Clear">
+              <X className="h-4 w-4 text-muted-foreground" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="px-4">
+        {!submitted && (
+          <div className="pt-2">
+            <div className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              Try Searching For
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {["Taylor Swift", "Drake", "The Weeknd", "Billie Eilish", "SZA", "Bad Bunny", "Lo-fi", "Jazz"].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setQ(s)}
+                  className="px-3 py-1.5 rounded-full bg-secondary text-[13px]"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {submitted && isFetching && (
+          <div className="space-y-2 pt-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-md bg-muted animate-pulse" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 w-3/4 bg-muted rounded animate-pulse" />
+                  <div className="h-3 w-1/2 bg-muted rounded animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {submitted && !isFetching && tracks.length === 0 && (
+          <div className="text-center text-muted-foreground py-12 text-[14px]">No results</div>
+        )}
+
+        {tracks.map((t) => (
+          <TrackRow key={t.id} track={t} onPlay={() => playTrack(t, tracks)} onMore={onMore} />
+        ))}
+      </div>
     </div>
   );
 }
