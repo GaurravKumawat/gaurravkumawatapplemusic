@@ -36,36 +36,6 @@ declare global {
   }
 }
 
-// Builds a tiny silent looping WAV data URI. Playing this in OUR document makes
-// iOS attribute the lock-screen "Now Playing" to this page (instead of the
-// cross-origin YouTube iframe), so our MediaSession prev/next handlers are used.
-function makeSilentWavDataUri(): string {
-  if (typeof btoa === "undefined") return "";
-  const sr = 8000;
-  const samples = sr; // 1 second
-  const bytes = 44 + samples * 2;
-  const buf = new ArrayBuffer(bytes);
-  const view = new DataView(buf);
-  const writeStr = (off: number, s: string) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
-  writeStr(0, "RIFF");
-  view.setUint32(4, 36 + samples * 2, true);
-  writeStr(8, "WAVE");
-  writeStr(12, "fmt ");
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true);
-  view.setUint32(24, sr, true);
-  view.setUint32(28, sr * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  writeStr(36, "data");
-  view.setUint32(40, samples * 2, true);
-  let binary = "";
-  const u8 = new Uint8Array(buf);
-  for (let i = 0; i < u8.length; i++) binary += String.fromCharCode(u8[i]);
-  return "data:audio/wav;base64," + btoa(binary);
-}
-
 let ytReadyPromise: Promise<void> | null = null;
 function loadYT(): Promise<void> {
   if (typeof window === "undefined") return Promise.resolve();
@@ -91,7 +61,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<RepeatMode>("off");
   const playerRef = useRef<any>(null);
-  const silentRef = useRef<HTMLAudioElement | null>(null);
   const containerId = "yt-player-host";
 
   const current = queue[index] ?? null;
@@ -176,12 +145,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
     navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
-    // Drive the silent audio element so OUR page owns the media session
-    const a = silentRef.current;
-    if (a) {
-      if (isPlaying) { a.play().catch(() => {}); }
-      else { a.pause(); }
-    }
   }, [isPlaying]);
 
   useEffect(() => {
@@ -226,8 +189,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [showFull]);
 
   const playTrack = useCallback((track: Track, q?: Track[]) => {
-    // Start silent audio within the user gesture so iOS lets our page own the session
-    try { silentRef.current?.play().catch(() => {}); } catch {}
     const newQueue = q && q.length ? q : [track];
     const idx = newQueue.findIndex((t) => t.id === track.id);
     setQueue(newQueue);
@@ -238,7 +199,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const p = playerRef.current;
     if (!p) return;
     if (isPlaying) p.pauseVideo();
-    else { try { silentRef.current?.play().catch(() => {}); } catch {} p.playVideo(); }
+    else p.playVideo();
   }, [isPlaying]);
 
   const next = useCallback(() => advance(), [advance]);
@@ -262,13 +223,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       value={{ queue, index, current, isPlaying, position, duration, showFull, ready, shuffle, repeat, playTrack, toggle, next, prev, seek, setShowFull, toggleShuffle, cycleRepeat }}
     >
       {children}
-      <audio
-        ref={silentRef}
-        src={makeSilentWavDataUri()}
-        loop
-        playsInline
-        style={{ display: "none" }}
-      />
       <div style={{ position: "fixed", left: -9999, top: -9999, width: 0, height: 0, overflow: "hidden" }}>
         <div id={containerId} />
       </div>
