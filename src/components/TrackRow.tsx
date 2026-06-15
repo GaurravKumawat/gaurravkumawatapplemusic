@@ -1,6 +1,5 @@
 import { MoreHorizontal } from "lucide-react";
 import type { Track } from "@/lib/music.functions";
-import { onArtworkError } from "@/lib/utils";
 
 export function TrackRow({
   track,
@@ -19,7 +18,7 @@ export function TrackRow({
         <div className="w-5 text-center text-muted-foreground text-[14px] tabular-nums">{index}</div>
       ) : null}
       <button onClick={onPlay} className="flex items-center gap-3 flex-1 min-w-0 text-left">
-        <img src={track.thumbnail} onError={onArtworkError} alt="" className="h-12 w-12 rounded-md object-cover bg-muted" />
+        <img src={track.thumbnail} alt="" className="h-12 w-12 rounded-md object-cover bg-muted" />
         <div className="flex-1 min-w-0 border-b border-border pb-2">
           <div className="text-[15px] truncate text-foreground">{track.title}</div>
           <div className="text-[13px] text-muted-foreground truncate">{track.artist}</div>

@@ -14,7 +14,6 @@ export type Track = {
   artist: string;
   duration: number;
   thumbnail: string;
-  views?: number;
 };
 
 async function tryInstances<T>(fn: (base: string) => Promise<T>): Promise<T> {
@@ -30,9 +29,9 @@ async function tryInstances<T>(fn: (base: string) => Promise<T>): Promise<T> {
 }
 
 function normalizeThumb(url: string): string {
-  // Use the highest-res YouTube thumbnail available (falls back in the UI on error)
+  // Use higher-res YouTube thumbnail when possible
   const m = url.match(/\/vi\/([^/]+)\//);
-  if (m) return `https://i.ytimg.com/vi/${m[1]}/maxresdefault.jpg`;
+  if (m) return `https://i.ytimg.com/vi/${m[1]}/hqdefault.jpg`;
   return url;
 }
 
@@ -56,7 +55,6 @@ export const searchMusic = createServerFn({ method: "POST" })
           artist: it.uploaderName ?? it.uploader ?? "Unknown Artist",
           duration: Number(it.duration ?? 0),
           thumbnail: normalizeThumb(it.thumbnail ?? ""),
-          views: typeof it.views === "number" && it.views >= 0 ? it.views : undefined,
         };
       })
       .filter((t) => t.id);
@@ -83,7 +81,6 @@ export const getTrending = createServerFn({ method: "GET" }).handler(async () =>
         artist: it.uploaderName ?? "",
         duration: Number(it.duration ?? 0),
         thumbnail: normalizeThumb(it.thumbnail ?? ""),
-        views: typeof it.views === "number" && it.views >= 0 ? it.views : undefined,
       };
     })
     .filter((t) => t.id);
