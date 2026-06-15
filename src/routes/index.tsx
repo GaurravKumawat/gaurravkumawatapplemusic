@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Search as SearchIcon, X, Play as PlayIcon } from "lucide-react";
 import { motion } from "motion/react";
-import { PlayerProvider, usePlayer } from "@/lib/player-context";
+import { PlayerProvider, usePlayer, formatViews } from "@/lib/player-context";
 import { LibraryProvider } from "@/lib/library-store";
 import { getTrending, searchMusic, type Track } from "@/lib/music.functions";
 import { MiniPlayer } from "@/components/MiniPlayer";
