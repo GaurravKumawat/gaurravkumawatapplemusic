@@ -56,6 +56,7 @@ export const searchMusic = createServerFn({ method: "POST" })
           artist: it.uploaderName ?? it.uploader ?? "Unknown Artist",
           duration: Number(it.duration ?? 0),
           thumbnail: normalizeThumb(it.thumbnail ?? ""),
+          views: Number(it.views ?? 0),
         };
       })
       .filter((t) => t.id);
