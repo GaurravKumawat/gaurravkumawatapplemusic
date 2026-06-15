@@ -16,7 +16,6 @@ import { ActionSheet } from "@/components/ActionSheet";
 import { LyricsView } from "@/components/LyricsView";
 import { RecognizeView } from "@/components/RecognizeView";
 import { AppleLogo } from "@/components/AppleLogo";
-import { formatViews } from "@/lib/player-context";
 
 export const Route = createFileRoute("/")({
   head: () => ({
