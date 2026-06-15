@@ -14,6 +14,7 @@ export type Track = {
   artist: string;
   duration: number;
   thumbnail: string;
+  views?: number;
 };
 
 async function tryInstances<T>(fn: (base: string) => Promise<T>): Promise<T> {
