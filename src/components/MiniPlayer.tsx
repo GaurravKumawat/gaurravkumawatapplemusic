@@ -1,5 +1,6 @@
 import { Pause, Play, SkipForward } from "lucide-react";
 import { usePlayer } from "@/lib/player-context";
+import { onArtworkError } from "@/lib/utils";
 
 export function MiniPlayer() {
   const { current, isPlaying, toggle, next, setShowFull, position, duration } = usePlayer();
@@ -14,6 +15,7 @@ export function MiniPlayer() {
       <div className="flex items-center gap-3 p-2">
         <img
           src={current.thumbnail}
+          onError={onArtworkError}
           alt=""
           className="h-11 w-11 rounded-md object-cover bg-muted"
         />
