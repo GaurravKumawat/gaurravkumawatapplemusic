@@ -52,7 +52,7 @@ function App() {
         {tab === "library" && <LibraryView onMore={setMoreFor} />}
         {tab === "recognize" && <RecognizeView />}
       </div>
-      <div style={{ height: current ? 140 : 80 }} />
+      <div style={{ height: current ? 180 : 110 }} />
       <MiniPlayer />
       <TabBar tab={tab} onChange={setTab} />
       <NowPlaying
