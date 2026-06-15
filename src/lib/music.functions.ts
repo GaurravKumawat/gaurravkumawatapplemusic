@@ -83,6 +83,7 @@ export const getTrending = createServerFn({ method: "GET" }).handler(async () =>
         artist: it.uploaderName ?? "",
         duration: Number(it.duration ?? 0),
         thumbnail: normalizeThumb(it.thumbnail ?? ""),
+        views: Number(it.views ?? 0),
       };
     })
     .filter((t) => t.id);
