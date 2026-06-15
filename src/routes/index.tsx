@@ -73,6 +73,14 @@ function SectionHeader({ title }: { title: string }) {
   return <h1 className="text-[28px] font-bold tracking-tight px-4 pt-3 pb-2">{title}</h1>;
 }
 
+const PICK_GRADIENTS = [
+  "linear-gradient(160deg, #ff2d55 0%, #8b0a2a 100%)",
+  "linear-gradient(160deg, #ff7a00 0%, #7a2e00 100%)",
+  "linear-gradient(160deg, #5e5ce6 0%, #1c1c4a 100%)",
+  "linear-gradient(160deg, #34c759 0%, #0a3d1e 100%)",
+  "linear-gradient(160deg, #00c7be 0%, #064a47 100%)",
+];
+
 function ListenNow({ onMore }: { onMore: (t: Track) => void }) {
   const trending = useServerFn(getTrending);
   const { data, isLoading } = useQuery({
@@ -82,30 +90,54 @@ function ListenNow({ onMore }: { onMore: (t: Track) => void }) {
   });
   const { playTrack } = usePlayer();
   const tracks = data?.tracks ?? [];
+  const today = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
 
   return (
     <div>
-      <SectionHeader title="Listen Now" />
+      {/* Header with Apple Music branding */}
+      <div className="flex items-center justify-between px-4 pt-2">
+        <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">{today}</div>
+        <div className="flex items-center gap-1.5 text-foreground">
+          <AppleLogo className="h-4 w-4" />
+          <span className="text-[15px] font-semibold tracking-tight">Music</span>
+        </div>
+      </div>
+      <h1 className="text-[30px] font-bold tracking-tight px-4 pt-0.5 pb-2">Listen Now</h1>
 
-      {tracks[0] && (
-        <button
-          onClick={() => playTrack(tracks[0], tracks)}
-          className="block w-full px-4 mb-6 text-left"
-        >
-          <div className="text-[11px] uppercase tracking-wider text-primary font-semibold mb-1">
-            Today's Pick
-          </div>
-          <div className="relative rounded-2xl overflow-hidden aspect-[4/3] shadow-xl">
-            <img src={tracks[0].thumbnail} alt="" className="absolute inset-0 w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-            <div className="absolute bottom-0 left-0 right-0 p-4">
-              <div className="text-white text-[20px] font-bold leading-tight line-clamp-2">{tracks[0].title}</div>
-              <div className="text-white/80 text-[14px] truncate">{tracks[0].artist}</div>
-            </div>
-          </div>
-        </button>
-      )}
+      {/* Top Picks — large gradient cards */}
+      <h2 className="text-[20px] font-bold px-4 mb-2">Top Picks</h2>
+      <div className="flex gap-3 overflow-x-auto no-scrollbar px-4 pb-5 snap-x snap-mandatory">
+        {isLoading
+          ? Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="shrink-0 w-[78vw] max-w-[320px] aspect-[3/4] rounded-3xl bg-muted animate-pulse" />
+            ))
+          : tracks.slice(0, 5).map((t, i) => (
+              <motion.button
+                key={t.id}
+                onClick={() => playTrack(t, tracks)}
+                whileTap={{ scale: 0.97 }}
+                className="shrink-0 w-[78vw] max-w-[320px] aspect-[3/4] rounded-3xl overflow-hidden relative text-left snap-start shadow-2xl"
+                style={{ backgroundImage: PICK_GRADIENTS[i % PICK_GRADIENTS.length] }}
+              >
+                <img
+                  src={t.thumbnail}
+                  onError={onArtworkError}
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-cover opacity-90"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
+                <div className="absolute top-3 left-4 text-[11px] uppercase tracking-wider text-white/80 font-bold">
+                  Featured
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 p-4">
+                  <div className="text-white text-[22px] font-bold leading-tight line-clamp-2">{t.title}</div>
+                  <div className="text-white/80 text-[14px] truncate">{t.artist}</div>
+                </div>
+              </motion.button>
+            ))}
+      </div>
 
+      {/* Trending — square cards with play count */}
       <h2 className="text-[20px] font-bold px-4 mb-2">Trending Now</h2>
       <div className="flex gap-3 overflow-x-auto no-scrollbar px-4 pb-4">
         {isLoading
@@ -116,17 +148,29 @@ function ListenNow({ onMore }: { onMore: (t: Track) => void }) {
                 <div className="h-3 mt-1 w-20 rounded bg-muted animate-pulse" />
               </div>
             ))
-          : tracks.slice(1, 12).map((t) => (
-              <button
-                key={t.id}
-                onClick={() => playTrack(t, tracks)}
-                className="shrink-0 w-40 text-left active:opacity-70"
-              >
-                <img src={t.thumbnail} alt="" className="w-40 h-40 rounded-xl object-cover bg-muted" />
-                <div className="text-[14px] font-medium mt-2 line-clamp-1">{t.title}</div>
-                <div className="text-[12px] text-muted-foreground line-clamp-1">{t.artist}</div>
-              </button>
-            ))}
+          : tracks.slice(1, 12).map((t) => {
+              const views = formatViews(t.views);
+              return (
+                <motion.button
+                  key={t.id}
+                  onClick={() => playTrack(t, tracks)}
+                  whileTap={{ scale: 0.95 }}
+                  className="shrink-0 w-40 text-left"
+                >
+                  <div className="relative">
+                    <img src={t.thumbnail} onError={onArtworkError} alt="" className="w-40 h-40 rounded-xl object-cover bg-muted" />
+                    {views && (
+                      <div className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 rounded-full bg-black/55 backdrop-blur px-2 py-0.5 text-[10px] text-white font-medium">
+                        <Play className="h-2 w-2 fill-current" />
+                        {views}
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-[14px] font-medium mt-2 line-clamp-1">{t.title}</div>
+                  <div className="text-[12px] text-muted-foreground line-clamp-1">{t.artist}</div>
+                </motion.button>
+              );
+            })}
       </div>
 
       <h2 className="text-[20px] font-bold px-4 mb-2 mt-2">Made For You</h2>
