@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Search as SearchIcon, X } from "lucide-react";
+import { Search as SearchIcon, X, Play as PlayIcon } from "lucide-react";
+import { motion } from "motion/react";
 import { PlayerProvider, usePlayer } from "@/lib/player-context";
 import { LibraryProvider } from "@/lib/library-store";
 import { getTrending, searchMusic, type Track } from "@/lib/music.functions";
@@ -14,6 +15,8 @@ import { LibraryView } from "@/components/LibraryView";
 import { ActionSheet } from "@/components/ActionSheet";
 import { LyricsView } from "@/components/LyricsView";
 import { RecognizeView } from "@/components/RecognizeView";
+import { AppleLogo } from "@/components/AppleLogo";
+import { formatViews } from "@/lib/player-context";
 
 export const Route = createFileRoute("/")({
   head: () => ({
