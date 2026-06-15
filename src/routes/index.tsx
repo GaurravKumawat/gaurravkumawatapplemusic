@@ -102,6 +102,11 @@ function ListenNow({ onMore }: { onMore: (t: Track) => void }) {
   const { playTrack } = usePlayer();
   const tracks = data?.tracks ?? [];
 
+  const [today, setToday] = useState("");
+  useEffect(() => {
+    setToday(new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }));
+  }, []);
+
   const topPicks = tracks.slice(0, 5);
 
   return (
@@ -109,8 +114,8 @@ function ListenNow({ onMore }: { onMore: (t: Track) => void }) {
       <AppleMusicHeader />
 
       <div className="px-4 pt-1 pb-1">
-        <div className="text-[12px] uppercase tracking-wider text-muted-foreground font-semibold">
-          {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+        <div className="text-[12px] uppercase tracking-wider text-muted-foreground font-semibold min-h-[15px]">
+          {today}
         </div>
         <h1 className="text-[32px] font-extrabold tracking-tight leading-none mt-0.5">Listen Now</h1>
       </div>
