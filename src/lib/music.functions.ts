@@ -14,6 +14,7 @@ export type Track = {
   artist: string;
   duration: number;
   thumbnail: string;
+  views?: number;
 };
 
 async function tryInstances<T>(fn: (base: string) => Promise<T>): Promise<T> {
@@ -29,9 +30,9 @@ async function tryInstances<T>(fn: (base: string) => Promise<T>): Promise<T> {
 }
 
 function normalizeThumb(url: string): string {
-  // Use higher-res YouTube thumbnail when possible
+  // Use the highest-res YouTube thumbnail available (falls back in the UI on error)
   const m = url.match(/\/vi\/([^/]+)\//);
-  if (m) return `https://i.ytimg.com/vi/${m[1]}/hqdefault.jpg`;
+  if (m) return `https://i.ytimg.com/vi/${m[1]}/maxresdefault.jpg`;
   return url;
 }
 
