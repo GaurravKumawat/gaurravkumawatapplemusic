@@ -14,7 +14,16 @@ export type Track = {
   artist: string;
   duration: number;
   thumbnail: string;
+  views?: number;
 };
+
+export function formatViews(n?: number): string {
+  if (!n || n <= 0) return "";
+  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1).replace(/\.0$/, "")}B`;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}K`;
+  return `${n}`;
+}
 
 async function tryInstances<T>(fn: (base: string) => Promise<T>): Promise<T> {
   let lastErr: unknown;
@@ -55,6 +64,7 @@ export const searchMusic = createServerFn({ method: "POST" })
           artist: it.uploaderName ?? it.uploader ?? "Unknown Artist",
           duration: Number(it.duration ?? 0),
           thumbnail: normalizeThumb(it.thumbnail ?? ""),
+          views: Number(it.views ?? 0) || undefined,
         };
       })
       .filter((t) => t.id);
@@ -81,6 +91,7 @@ export const getTrending = createServerFn({ method: "GET" }).handler(async () =>
         artist: it.uploaderName ?? "",
         duration: Number(it.duration ?? 0),
         thumbnail: normalizeThumb(it.thumbnail ?? ""),
+        views: Number(it.views ?? 0) || undefined,
       };
     })
     .filter((t) => t.id);
