@@ -95,28 +95,52 @@ function ListenNow({ onMore }: { onMore: (t: Track) => void }) {
   const { playTrack } = usePlayer();
   const tracks = data?.tracks ?? [];
 
+  const dateLabel = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }).toUpperCase();
+  const gradients = [
+    "linear-gradient(160deg, #ff2d55, #7a0b2e)",
+    "linear-gradient(160deg, #fa8c1f, #7a2e00)",
+    "linear-gradient(160deg, #5e5ce6, #1a1240)",
+    "linear-gradient(160deg, #30d158, #0b3a1f)",
+    "linear-gradient(160deg, #64d2ff, #093a55)",
+  ];
+  const labels = ["Top Hits 2025", "New Music Mix", "Chill Vibes", "Throwback", "Discovery"];
+
   return (
     <div>
-      <SectionHeader title="Listen Now" />
+      <div className="px-4 pt-3 pb-1">
+        <div className="text-[12px] uppercase tracking-wider text-muted-foreground font-semibold">{dateLabel}</div>
+        <h1 className="text-[30px] font-bold tracking-tight">Listen Now</h1>
+      </div>
 
-      {tracks[0] && (
-        <button
-          onClick={() => playTrack(tracks[0], tracks)}
-          className="block w-full px-4 mb-6 text-left"
-        >
-          <div className="text-[11px] uppercase tracking-wider text-primary font-semibold mb-1">
-            Today's Pick
-          </div>
-          <div className="relative rounded-2xl overflow-hidden aspect-[4/3] shadow-xl">
-            <img src={tracks[0].thumbnail} alt="" className="absolute inset-0 w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-            <div className="absolute bottom-0 left-0 right-0 p-4">
-              <div className="text-white text-[20px] font-bold leading-tight line-clamp-2">{tracks[0].title}</div>
-              <div className="text-white/80 text-[14px] truncate">{tracks[0].artist}</div>
+      {/* Top Picks — gradient cards */}
+      <h2 className="text-[20px] font-bold px-4 mb-2 mt-2">Top Picks</h2>
+      <div className="flex gap-3 overflow-x-auto no-scrollbar px-4 pb-4 snap-x snap-mandatory">
+        {(isLoading ? Array.from({ length: 4 }) : tracks.slice(0, 5)).map((t: any, i) => (
+          <motion.button
+            key={t?.id ?? i}
+            initial={{ opacity: 0, scale: 0.94, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ delay: i * 0.06, type: "spring", stiffness: 320, damping: 30 }}
+            whileTap={{ scale: 0.96 }}
+            onClick={() => t && playTrack(t, tracks)}
+            className="snap-start shrink-0 w-[280px] h-[340px] rounded-[26px] overflow-hidden relative text-left shadow-xl"
+            style={{ background: gradients[i % gradients.length] }}
+          >
+            {t?.thumbnail && (
+              <img src={t.thumbnail} alt="" className="absolute inset-0 w-full h-full object-cover opacity-25" />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/10" />
+            <div className="absolute top-5 left-5 right-5 text-center">
+              <div className="text-white text-[15px] font-semibold drop-shadow">{labels[i % labels.length]}</div>
             </div>
-          </div>
-        </button>
-      )}
+            <div className="absolute bottom-5 left-5 right-5">
+              <div className="text-[11px] uppercase tracking-wider text-white/70 font-semibold mb-1">Playlist</div>
+              <div className="text-white text-[22px] font-bold leading-tight line-clamp-2">{t?.title ?? "Loading…"}</div>
+              {t?.artist && <div className="text-white/80 text-[14px] truncate">{t.artist}</div>}
+            </div>
+          </motion.button>
+        ))}
+      </div>
 
       <h2 className="text-[20px] font-bold px-4 mb-2">Trending Now</h2>
       <div className="flex gap-3 overflow-x-auto no-scrollbar px-4 pb-4">
@@ -128,16 +152,22 @@ function ListenNow({ onMore }: { onMore: (t: Track) => void }) {
                 <div className="h-3 mt-1 w-20 rounded bg-muted animate-pulse" />
               </div>
             ))
-          : tracks.slice(1, 12).map((t) => (
-              <button
+          : tracks.slice(1, 12).map((t, i) => (
+              <motion.button
                 key={t.id}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04, type: "spring", stiffness: 320, damping: 30 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => playTrack(t, tracks)}
-                className="shrink-0 w-40 text-left active:opacity-70"
+                className="shrink-0 w-40 text-left"
               >
                 <img src={t.thumbnail} alt="" className="w-40 h-40 rounded-xl object-cover bg-muted" />
                 <div className="text-[14px] font-medium mt-2 line-clamp-1">{t.title}</div>
-                <div className="text-[12px] text-muted-foreground line-clamp-1">{t.artist}</div>
-              </button>
+                <div className="text-[12px] text-muted-foreground line-clamp-1 flex items-center gap-1">
+                  {formatViews(t.views) ? `${formatViews(t.views)} plays` : t.artist}
+                </div>
+              </motion.button>
             ))}
       </div>
 
@@ -150,6 +180,7 @@ function ListenNow({ onMore }: { onMore: (t: Track) => void }) {
     </div>
   );
 }
+
 
 function SearchView({ onMore }: { onMore: (t: Track) => void }) {
   const [q, setQ] = useState("");
