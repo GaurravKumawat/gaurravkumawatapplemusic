@@ -45,7 +45,20 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="pt-safe">
+      {tab === "listen" && (
+        <header className="sticky top-0 z-30 glass pt-safe">
+          <div className="grid grid-cols-3 items-center px-4 h-12">
+            <div />
+            <AppleMusicLogo />
+            <div className="flex justify-end">
+              <div className="h-8 w-8 rounded-full bg-secondary grid place-items-center text-[12px] font-semibold text-foreground/80">
+                GK
+              </div>
+            </div>
+          </div>
+        </header>
+      )}
+      <div className={tab === "listen" ? "" : "pt-safe"}>
         {tab === "listen" && <ListenNow onMore={setMoreFor} />}
         {tab === "search" && <SearchView onMore={setMoreFor} />}
         {tab === "library" && <LibraryView onMore={setMoreFor} />}
