@@ -95,7 +95,12 @@ function ListenNow({ onMore }: { onMore: (t: Track) => void }) {
   const { playTrack } = usePlayer();
   const tracks = data?.tracks ?? [];
 
-  const dateLabel = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }).toUpperCase();
+  const [dateLabel, setDateLabel] = useState("");
+  useEffect(() => {
+    setDateLabel(
+      new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }).toUpperCase()
+    );
+  }, []);
   const gradients = [
     "linear-gradient(160deg, #ff2d55, #7a0b2e)",
     "linear-gradient(160deg, #fa8c1f, #7a2e00)",
