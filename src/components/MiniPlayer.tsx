@@ -1,46 +1,25 @@
-import { Pause, Play, SkipForward, Eye } from "lucide-react";
-import { motion } from "motion/react";
+import { Pause, Play, SkipForward } from "lucide-react";
 import { usePlayer } from "@/lib/player-context";
-import { formatViews } from "@/lib/music.functions";
 
 export function MiniPlayer() {
-  const { current, isPlaying, toggle, next, setShowFull, position, duration, showFull } = usePlayer();
-  if (!current || showFull) return null;
+  const { current, isPlaying, toggle, next, setShowFull, position, duration } = usePlayer();
+  if (!current) return null;
   const pct = duration > 0 ? (position / duration) * 100 : 0;
-  const views = formatViews(current.views);
 
   return (
-    <motion.div
-      layoutId="player-surface"
+    <button
       onClick={() => setShowFull(true)}
-      initial={false}
-      transition={{ type: "spring", stiffness: 420, damping: 38 }}
-      style={{ borderRadius: 30 }}
-      className="fixed left-2 right-2 bottom-[calc(env(safe-area-inset-bottom)+58px)] z-40 glass-strong shadow-2xl border border-border overflow-hidden text-left cursor-pointer"
+      className="fixed left-2 right-2 bottom-[calc(env(safe-area-inset-bottom)+56px)] z-40 glass-strong rounded-2xl shadow-2xl border border-border overflow-hidden text-left active:scale-[0.99] transition-transform"
     >
-      <motion.div
-        whileTap={{ scale: 0.97 }}
-        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-        className="flex items-center gap-3 p-2"
-      >
-        <motion.img
-          layoutId="player-art"
+      <div className="flex items-center gap-3 p-2">
+        <img
           src={current.thumbnail}
           alt=""
-          className="h-12 w-12 rounded-2xl object-cover bg-muted shrink-0"
+          className="h-11 w-11 rounded-md object-cover bg-muted"
         />
         <div className="flex-1 min-w-0">
-          <motion.div layoutId="player-title" className="text-[14px] font-semibold truncate text-foreground">
-            {current.title}
-          </motion.div>
-          <div className="text-[12px] text-muted-foreground truncate flex items-center gap-1.5">
-            <span className="truncate">{current.artist}</span>
-            {views && (
-              <span className="flex items-center gap-0.5 shrink-0 text-muted-foreground/80">
-                <Eye className="h-3 w-3" /> {views}
-              </span>
-            )}
-          </div>
+          <div className="text-[14px] font-medium truncate text-foreground">{current.title}</div>
+          <div className="text-[12px] text-muted-foreground truncate">{current.artist}</div>
         </div>
         <button
           onClick={(e) => { e.stopPropagation(); toggle(); }}
@@ -51,15 +30,15 @@ export function MiniPlayer() {
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); next(); }}
-          className="p-2 pr-3 text-foreground"
+          className="p-2 text-foreground"
           aria-label="Next"
         >
           <SkipForward className="h-5 w-5 fill-current" />
         </button>
-      </motion.div>
+      </div>
       <div className="h-[2px] bg-white/10">
         <div className="h-full bg-white/80 transition-[width]" style={{ width: `${pct}%` }} />
       </div>
-    </motion.div>
+    </button>
   );
 }
