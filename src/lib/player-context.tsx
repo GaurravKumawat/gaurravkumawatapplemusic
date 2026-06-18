@@ -164,10 +164,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     const setHandlers = () => {
       try {
-        navigator.mediaSession.setActionHandler("play", () => playerRef.current?.playVideo());
-        navigator.mediaSession.setActionHandler("pause", () => playerRef.current?.pauseVideo());
-        navigator.mediaSession.setActionHandler("nexttrack", () => advance());
-        navigator.mediaSession.setActionHandler("previoustrack", () => setIndex((i) => Math.max(0, i - 1)));
+        navigator.mediaSession.setActionHandler("play", () => { playerRef.current?.playVideo(); });
+        navigator.mediaSession.setActionHandler("pause", () => { playerRef.current?.pauseVideo(); });
+        navigator.mediaSession.setActionHandler("nexttrack", () => { advance(); });
+        navigator.mediaSession.setActionHandler("previoustrack", () => { setIndex((i) => Math.max(0, i - 1)); });
         // Explicitly remove the 10s skip controls so iOS shows prev/next track buttons instead.
         // The YouTube iframe re-registers these after each video loads, so we keep nulling them.
         navigator.mediaSession.setActionHandler("seekbackward", null);
@@ -177,6 +177,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         });
       } catch {}
     };
+    setHandlersRef.current = setHandlers;
 
     navigator.mediaSession.metadata = new MediaMetadata({
       title: current.title,
