@@ -61,6 +61,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<RepeatMode>("off");
   const playerRef = useRef<any>(null);
+  const setHandlersRef = useRef<() => void>(() => {});
   const containerId = "yt-player-host";
 
   const current = queue[index] ?? null;
