@@ -110,6 +110,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             if (e.data === YTState.PLAYING) setIsPlaying(true);
             else if (e.data === YTState.PAUSED) setIsPlaying(false);
             else if (e.data === YTState.ENDED) advance();
+            // YouTube re-claims the MediaSession handlers on every state change,
+            // so immediately re-assert ours so lock-screen prev/next stay wired to us.
+            setHandlersRef.current?.();
           },
         },
       });
