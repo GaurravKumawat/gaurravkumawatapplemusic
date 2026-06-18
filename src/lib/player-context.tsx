@@ -134,20 +134,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 playbackRate: 1,
               });
             } catch {}
-            // The YouTube iframe keeps re-registering its own ⏪10/⏩10 controls.
-            // Re-null the seek handlers each tick so iOS keeps showing prev/next track buttons.
-            try {
-              navigator.mediaSession.setActionHandler("seekbackward", null);
-              navigator.mediaSession.setActionHandler("seekforward", null);
-              navigator.mediaSession.setActionHandler("nexttrack", () => advance());
-              navigator.mediaSession.setActionHandler("previoustrack", () => setIndex((i) => Math.max(0, i - 1)));
-            } catch {}
           }
         } catch {}
       }
     }, 500);
     return () => clearInterval(id);
-  }, [advance]);
+  }, []);
 
   // Keep the OS playback state in sync so the lock screen shows correct controls
   useEffect(() => {
