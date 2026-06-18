@@ -188,8 +188,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     // Re-assert handlers a few times after the video (re)loads, since the YouTube
     // iframe overrides our MediaSession action handlers with its own 10s skip ones.
-    const timeouts = [300, 800, 1500, 3000].map((ms) => setTimeout(setHandlers, ms));
-    const interval = setInterval(setHandlers, 4000);
+    const timeouts = [200, 500, 1000, 2000, 3500].map((ms) => setTimeout(setHandlers, ms));
+    const interval = setInterval(setHandlers, 1000);
     return () => {
       timeouts.forEach(clearTimeout);
       clearInterval(interval);
