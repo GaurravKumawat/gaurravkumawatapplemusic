@@ -157,25 +157,38 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!current || typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+
+    const setHandlers = () => {
+      try {
+        navigator.mediaSession.setActionHandler("play", () => playerRef.current?.playVideo());
+        navigator.mediaSession.setActionHandler("pause", () => playerRef.current?.pauseVideo());
+        navigator.mediaSession.setActionHandler("nexttrack", () => advance());
+        navigator.mediaSession.setActionHandler("previoustrack", () => setIndex((i) => Math.max(0, i - 1)));
+        // Explicitly remove the 10s skip controls so iOS shows prev/next track buttons instead.
+        // The YouTube iframe re-registers these after each video loads, so we keep nulling them.
+        navigator.mediaSession.setActionHandler("seekbackward", null);
+        navigator.mediaSession.setActionHandler("seekforward", null);
+        navigator.mediaSession.setActionHandler("seekto", (details: any) => {
+          if (details.seekTime != null) playerRef.current?.seekTo(details.seekTime, true);
+        });
+      } catch {}
+    };
+
     navigator.mediaSession.metadata = new MediaMetadata({
       title: current.title,
       artist: current.artist,
       artwork: [{ src: current.thumbnail, sizes: "512x512", type: "image/jpeg" }],
     });
-    navigator.mediaSession.setActionHandler("play", () => playerRef.current?.playVideo());
-    navigator.mediaSession.setActionHandler("pause", () => playerRef.current?.pauseVideo());
-    navigator.mediaSession.setActionHandler("nexttrack", () => advance());
-    navigator.mediaSession.setActionHandler("previoustrack", () => setIndex((i) => Math.max(0, i - 1)));
-    // Explicitly remove the 10s skip controls so iOS shows prev/next track buttons instead
-    try {
-      navigator.mediaSession.setActionHandler("seekbackward", null);
-      navigator.mediaSession.setActionHandler("seekforward", null);
-    } catch {}
-    try {
-      navigator.mediaSession.setActionHandler("seekto", (details: any) => {
-        if (details.seekTime != null) playerRef.current?.seekTo(details.seekTime, true);
-      });
-    } catch {}
+    setHandlers();
+
+    // Re-assert handlers a few times after the video (re)loads, since the YouTube
+    // iframe overrides our MediaSession action handlers with its own 10s skip ones.
+    const timeouts = [300, 800, 1500, 3000].map((ms) => setTimeout(setHandlers, ms));
+    const interval = setInterval(setHandlers, 4000);
+    return () => {
+      timeouts.forEach(clearTimeout);
+      clearInterval(interval);
+    };
   }, [current, advance]);
 
   // Lock body scroll when full player is open
