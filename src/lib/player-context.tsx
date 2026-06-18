@@ -61,6 +61,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<RepeatMode>("off");
   const playerRef = useRef<any>(null);
+  const setHandlersRef = useRef<() => void>(() => {});
   const containerId = "yt-player-host";
 
   const current = queue[index] ?? null;
@@ -109,6 +110,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             if (e.data === YTState.PLAYING) setIsPlaying(true);
             else if (e.data === YTState.PAUSED) setIsPlaying(false);
             else if (e.data === YTState.ENDED) advance();
+            // YouTube re-claims the MediaSession handlers on every state change,
+            // so immediately re-assert ours so lock-screen prev/next stay wired to us.
+            setHandlersRef.current?.();
           },
         },
       });
@@ -160,10 +164,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     const setHandlers = () => {
       try {
-        navigator.mediaSession.setActionHandler("play", () => playerRef.current?.playVideo());
-        navigator.mediaSession.setActionHandler("pause", () => playerRef.current?.pauseVideo());
-        navigator.mediaSession.setActionHandler("nexttrack", () => advance());
-        navigator.mediaSession.setActionHandler("previoustrack", () => setIndex((i) => Math.max(0, i - 1)));
+        navigator.mediaSession.setActionHandler("play", () => { playerRef.current?.playVideo(); });
+        navigator.mediaSession.setActionHandler("pause", () => { playerRef.current?.pauseVideo(); });
+        navigator.mediaSession.setActionHandler("nexttrack", () => { advance(); });
+        navigator.mediaSession.setActionHandler("previoustrack", () => { setIndex((i) => Math.max(0, i - 1)); });
         // Explicitly remove the 10s skip controls so iOS shows prev/next track buttons instead.
         // The YouTube iframe re-registers these after each video loads, so we keep nulling them.
         navigator.mediaSession.setActionHandler("seekbackward", null);
@@ -173,6 +177,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         });
       } catch {}
     };
+    setHandlersRef.current = setHandlers;
 
     navigator.mediaSession.metadata = new MediaMetadata({
       title: current.title,
@@ -183,8 +188,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     // Re-assert handlers a few times after the video (re)loads, since the YouTube
     // iframe overrides our MediaSession action handlers with its own 10s skip ones.
-    const timeouts = [300, 800, 1500, 3000].map((ms) => setTimeout(setHandlers, ms));
-    const interval = setInterval(setHandlers, 4000);
+    const timeouts = [200, 500, 1000, 2000, 3500].map((ms) => setTimeout(setHandlers, ms));
+    const interval = setInterval(setHandlers, 1000);
     return () => {
       timeouts.forEach(clearTimeout);
       clearInterval(interval);
