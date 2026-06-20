@@ -75,6 +75,32 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => { shuffleRef.current = shuffle; }, [shuffle]);
   useEffect(() => { repeatRef.current = repeat; }, [repeat]);
 
+  // Immediately load + play a given queue index and update the lock-screen
+  // metadata synchronously. Relying only on the React effect chain is unreliable
+  // when the screen is locked (timers/effects get throttled), so do it directly.
+  const loadIndex = useCallback((target: number) => {
+    const q = queueRef.current;
+    if (!q.length) return;
+    const clamped = Math.max(0, Math.min(target, q.length - 1));
+    setIndex(clamped);
+    indexRef.current = clamped;
+    const track = q[clamped];
+    if (!track) return;
+    try {
+      playerRef.current?.loadVideoById(track.id);
+      playerRef.current?.playVideo();
+    } catch {}
+    if (typeof navigator !== "undefined" && "mediaSession" in navigator) {
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: track.title,
+          artist: track.artist,
+          artwork: [{ src: track.thumbnail, sizes: "512x512", type: "image/jpeg" }],
+        });
+      } catch {}
+    }
+  }, []);
+
   const advance = useCallback(() => {
     const q = queueRef.current;
     const i = indexRef.current;
@@ -86,12 +112,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (shuffleRef.current && q.length > 1) {
       let r = i;
       while (r === i) r = Math.floor(Math.random() * q.length);
-      setIndex(r);
+      loadIndex(r);
       return;
     }
-    if (i + 1 < q.length) setIndex(i + 1);
-    else if (repeatRef.current === "all") setIndex(0);
-  }, []);
+    if (i + 1 < q.length) loadIndex(i + 1);
+    else if (repeatRef.current === "all") loadIndex(0);
+  }, [loadIndex]);
+
+  const goPrev = useCallback(() => {
+    const i = indexRef.current;
+    const pos = playerRef.current?.getCurrentTime?.() ?? 0;
+    if (pos > 3) {
+      try { playerRef.current?.seekTo(0, true); playerRef.current?.playVideo(); } catch {}
+    } else {
+      loadIndex(i - 1);
+    }
+  }, [loadIndex]);
 
   // init YT
   useEffect(() => {
