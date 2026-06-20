@@ -225,7 +225,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       timeouts.forEach(clearTimeout);
       clearInterval(interval);
     };
-  }, [current, advance]);
+  }, [current, advance, goPrev]);
 
   // Lock body scroll when full player is open
   useEffect(() => {
