@@ -252,13 +252,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [isPlaying]);
 
   const next = useCallback(() => advance(), [advance]);
-  const prev = useCallback(() => {
-    if (position > 3) {
-      playerRef.current?.seekTo(0, true);
-    } else {
-      setIndex((i) => Math.max(0, i - 1));
-    }
-  }, [position]);
+  const prev = useCallback(() => goPrev(), [goPrev]);
   const seek = useCallback((s: number) => {
     playerRef.current?.seekTo(s, true);
     setPosition(s);
